@@ -7,6 +7,7 @@ const app = express()
 
 morgan.token("body", (req, res) => JSON.stringify(req.body))
 
+app.use(express.static("build"))
 app.use(express.json())
 // The morgan configuration was copy-pasted from my 2019 solution
 app.use(
@@ -80,7 +81,8 @@ app.post("/api/people", (req, res) => {
   if (people.some((pers) => pers.name === person.name)) {
     return res.status(404).send({ error: "name must be unique" })
   }
-  person.id = uuidv4()
+  // person.id = uuidv4()
+  person.id = generateId()
   people.push(person)
   console.log(person)
   res.json(person)
@@ -88,10 +90,17 @@ app.post("/api/people", (req, res) => {
 
 app.delete("/api/people/:id", (req, res) => {
   let id = Number(req.params.id)
+  console.log(id)
   people = people.filter((person) => person.id !== id)
+  console.log(people)
   res.status(204).end()
   // TODO: better message for failed deletion
 })
+
+const generateId = () => {
+  const maxId = people.length > 0 ? Math.max(...people.map((n) => n.id)) : 0
+  return maxId + 1
+}
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
