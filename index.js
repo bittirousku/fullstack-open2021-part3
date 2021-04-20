@@ -32,9 +32,13 @@ app.use(cors())
 
 // Routes
 app.get("/info", (req, res) => {
-  res.send(
-    `<p>Phonebook has info for ${people.length} people</p><p> ${new Date()}</p>`
-  )
+  Person.find({}).then((people) => {
+    res.send(
+      `<p>Phonebook has info for ${
+        people.length
+      } people</p><p> ${new Date()}</p>`
+    )
+  })
 })
 
 app.get("/api/people", (req, res) => {
@@ -55,7 +59,7 @@ app.get("/api/people/:id", (req, res, next) => {
     })
 })
 
-app.put("/api/people/:id", (req, res) => {
+app.put("/api/people/:id", (req, res, next) => {
   Person.findByIdAndUpdate(
     req.params.id,
     { number: req.params.number },
@@ -77,7 +81,7 @@ app.post("/api/people", (req, res, next) => {
   person
     .save()
     .then((savedPerson) => {
-      res.json(person)
+      res.json(savedPerson)
       // why in the example this is explicitly turned into JSON string?
       // It works as well without a call to toJSON
       // res.json(person.toJSON())
@@ -85,7 +89,7 @@ app.post("/api/people", (req, res, next) => {
     .catch((err) => next(err))
 })
 
-app.delete("/api/people/:id", (req, res) => {
+app.delete("/api/people/:id", (req, res, next) => {
   Person.findOneAndDelete(req.params.id)
     .then((result) => res.status(204).end())
     .catch((err) => next(err))
