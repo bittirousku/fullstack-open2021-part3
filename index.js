@@ -1,7 +1,8 @@
+require("dotenv").config()
 const express = require("express")
-const { v4: uuidv4 } = require("uuid")
 const morgan = require("morgan")
 const cors = require("cors")
+const Person = require("./models/person")
 
 const app = express()
 
@@ -9,6 +10,7 @@ morgan.token("body", (req, res) => JSON.stringify(req.body))
 
 app.use(express.static("build"))
 app.use(express.json())
+
 // The morgan configuration was copy-pasted from my 2019 solution
 app.use(
   morgan((tokens, req, res) => {
@@ -26,29 +28,6 @@ app.use(
 )
 app.use(cors())
 
-let people = [
-  {
-    name: "Arto Hellas",
-    number: "040-123456",
-    id: 1,
-  },
-  {
-    name: "Ada Lovelace",
-    number: "39-44-5323523",
-    id: 2,
-  },
-  {
-    name: "Dan Abramov",
-    number: "12-43-234345",
-    id: 3,
-  },
-  {
-    name: "Mary Poppendieck",
-    number: "39-23-6423122",
-    id: 4,
-  },
-]
-
 app.get("/info", (req, res) => {
   res.send(
     `<p>Phonebook has info for ${people.length} people</p><p> ${new Date()}</p>`
@@ -56,41 +35,53 @@ app.get("/info", (req, res) => {
 })
 
 app.get("/api/people", (req, res) => {
-  res.json(people)
+  Person.find({}).then((people) => res.json(people))
 })
 
 app.get("/api/people/:id", (req, res) => {
-  let id = Number(req.params.id)
-  let person = people.find((person) => person.id === id)
-  if (person) {
-    res.json(person)
-  } else {
-    res.status(404).end()
-  }
+  Person.findById(req.params.id)
+    .then((person) => {
+      res.json(person)
+    })
+    .catch((err) => res.status(404).end())
+})
+
+app.put("/api/people/:id", (req, res) => {
+  Person.findById(req.params.id).then((person) => {
+    console.log("HELLO!", person)
+    if (person) {
+      person.number = req.body.number
+      person.save().then((savedPerson) => {
+        res.json(person)
+      })
+    }
+  })
 })
 
 app.post("/api/people", (req, res) => {
-  let person = req.body
-  if (!person || !person.name || !person.number) {
+  console.log("HALOO")
+  let newPersonData = req.body
+  if (!newPersonData || !newPersonData.name || !newPersonData.number) {
     return res.status(404).send({ error: "data missing" })
   }
-  if (people.some((pers) => pers.name === person.name)) {
-    return res.status(404).send({ error: "name must be unique" })
-  }
-  // person.id = uuidv4()
-  person.id = generateId()
-  people.push(person)
-  console.log(person)
-  res.json(person)
+  Person.findOne({ name: newPersonData.name }).then((person) => {
+    if (person) {
+      return res.status(404).send({ error: "name must be unique" })
+    }
+  })
+
+  const person = new Person({
+    name: newPersonData.name,
+    number: newPersonData.number,
+  })
+
+  person.save().then((savedPerson) => {
+    res.json(person)
+  })
 })
 
 app.delete("/api/people/:id", (req, res) => {
-  let id = Number(req.params.id)
-  console.log(id)
-  people = people.filter((person) => person.id !== id)
-  console.log(people)
-  res.status(204).end()
-  // TODO: better message for failed deletion
+  Person.findOneAndDelete(req.params.id).then((result) => res.status(204).end())
 })
 
 const generateId = () => {
@@ -98,7 +89,7 @@ const generateId = () => {
   return maxId + 1
 }
 
-const PORT = process.env.PORT || 3001
+const PORT = process.env.PORT
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
 })
