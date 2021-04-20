@@ -68,25 +68,21 @@ app.put("/api/people/:id", (req, res) => {
     .catch((err) => next(err))
 })
 
-app.post("/api/people", (req, res) => {
-  let newPersonData = req.body
-  if (!newPersonData || !newPersonData.name || !newPersonData.number) {
-    return res.status(404).send({ error: "data missing" })
-  }
-  Person.findOne({ name: newPersonData.name }).then((person) => {
-    if (person) {
-      return res.status(404).send({ error: "name must be unique" })
-    }
-  })
-
+app.post("/api/people", (req, res, next) => {
   const person = new Person({
-    name: newPersonData.name,
-    number: newPersonData.number,
+    name: req.body.name,
+    number: req.body.number,
   })
 
-  person.save().then((savedPerson) => {
-    res.json(person)
-  })
+  person
+    .save()
+    .then((savedPerson) => {
+      res.json(person)
+      // why in the example this is explicitly turned into JSON string?
+      // It works as well without a call to toJSON
+      // res.json(person.toJSON())
+    })
+    .catch((err) => next(err))
 })
 
 app.delete("/api/people/:id", (req, res) => {
