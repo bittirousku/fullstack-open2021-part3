@@ -3,9 +3,11 @@ const express = require("express")
 const morgan = require("morgan")
 const cors = require("cors")
 const Person = require("./models/person")
+const errorHandlers = require("./middleware/errorHandlers")
 
 const app = express()
 
+// Middleware
 morgan.token("body", (req, res) => JSON.stringify(req.body))
 
 app.use(express.static("build"))
@@ -28,6 +30,7 @@ app.use(
 )
 app.use(cors())
 
+// Routes
 app.get("/info", (req, res) => {
   res.send(
     `<p>Phonebook has info for ${people.length} people</p><p> ${new Date()}</p>`
@@ -38,28 +41,34 @@ app.get("/api/people", (req, res) => {
   Person.find({}).then((people) => res.json(people))
 })
 
-app.get("/api/people/:id", (req, res) => {
+app.get("/api/people/:id", (req, res, next) => {
   Person.findById(req.params.id)
     .then((person) => {
-      res.json(person)
+      if (person) {
+        res.json(person)
+      } else {
+        res.status(404).end()
+      }
     })
-    .catch((err) => res.status(404).end())
+    .catch((err) => {
+      next(err)
+    })
 })
 
 app.put("/api/people/:id", (req, res) => {
-  Person.findById(req.params.id).then((person) => {
-    console.log("HELLO!", person)
-    if (person) {
-      person.number = req.body.number
-      person.save().then((savedPerson) => {
-        res.json(person)
-      })
-    }
-  })
+  Person.findByIdAndUpdate(
+    req.params.id,
+    { number: req.params.number },
+    { new: true }
+  )
+    .then((updated) => {
+      console.log("updated person", updated)
+      res.json(updated)
+    })
+    .catch((err) => next(err))
 })
 
 app.post("/api/people", (req, res) => {
-  console.log("HALOO")
   let newPersonData = req.body
   if (!newPersonData || !newPersonData.name || !newPersonData.number) {
     return res.status(404).send({ error: "data missing" })
@@ -81,13 +90,14 @@ app.post("/api/people", (req, res) => {
 })
 
 app.delete("/api/people/:id", (req, res) => {
-  Person.findOneAndDelete(req.params.id).then((result) => res.status(204).end())
+  Person.findOneAndDelete(req.params.id)
+    .then((result) => res.status(204).end())
+    .catch((err) => next(err))
 })
 
-const generateId = () => {
-  const maxId = people.length > 0 ? Math.max(...people.map((n) => n.id)) : 0
-  return maxId + 1
-}
+// Error handler middlwares must be called last
+app.use(errorHandlers.errorHandler)
+app.use(errorHandlers.unknownEndpoint)
 
 const PORT = process.env.PORT
 app.listen(PORT, () => {
